@@ -11,7 +11,7 @@ hallucination_project/
 │   ├── exp3_confidence_amplification.py        # Experiment 3: confidence amplification
 │   └── exp4_propagation_vs_persistence.py      # Experiment 4: propagation vs persistence
 ├── results/
-│   └── (auto-generated CSVs + plots per experiment)
+│   └── ()
 ├── utils/
 │   ├── azure_client.py                         # Azure OpenAI client wrapper
 │   └── prompts.py                              # All prompt templates
