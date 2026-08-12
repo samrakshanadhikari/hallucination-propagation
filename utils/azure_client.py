@@ -4,20 +4,20 @@ from openai import OpenAI
 
 load_dotenv()
 
-# ── Mistral client ────────────────────────────────────────────────────────────
-mistral_client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=os.getenv("AZURE_OPENAI_ENDPOINT"),
-)
+# Allow importing this module without credentials (e.g. dry-run inventory).
+# Actual calls still fail clearly if keys are missing.
 MISTRAL_DEPLOYMENT = os.getenv("AZURE_DEPLOYMENT_NAME", "Mistral-Large-3")
-
-# ── GPT-5.4-nano client ───────────────────────────────────────────────────────
-GPT_ENDPOINT   = os.getenv("GPT_ENDPOINT", "https://proj-221.services.ai.azure.com/openai/v1")
+GPT_ENDPOINT = os.getenv("GPT_ENDPOINT", "https://proj-221.services.ai.azure.com/openai/v1")
 GPT_DEPLOYMENT = os.getenv("GPT_DEPLOYMENT", "gpt-5.4-nano")
-GPT_API_KEY    = os.getenv("GPT_API_KEY")
+GPT_API_KEY = os.getenv("GPT_API_KEY")
+
+mistral_client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY") or "MISSING_AZURE_OPENAI_API_KEY",
+    base_url=os.getenv("AZURE_OPENAI_ENDPOINT") or "https://example.invalid/openai/v1",
+)
 
 gpt_client = OpenAI(
-    api_key=GPT_API_KEY,
+    api_key=GPT_API_KEY or "MISSING_GPT_API_KEY",
     base_url=GPT_ENDPOINT,
 )
 
