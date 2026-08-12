@@ -4,7 +4,7 @@ Unified resume-aware pipeline.
 
 Default behavior:
   - Keep already-finished 5-hop chains (skip API)
-  - Extend 2-hop results → hops 3–5 from saved student/hop2 response
+  - Extend 2-hop results → hops 3–5 from saved hop2 response
   - Run full 5-hop only for new unique facts not in prior results
 
 Matching key: false_fact (so lightly rewritten cutoff questions still match).
@@ -36,7 +36,7 @@ from pipeline.inventory import (  # noqa: E402
     _index_existing,
     _norm_ff,
 )
-from pipeline.chain import judge_hop, pass_hop, row_template, seed_hop1  # noqa: E402
+from pipeline.chain import _as_bool, judge_hop, pass_hop, row_template, seed_hop1  # noqa: E402
 
 OUT_DIR = RESULTS / "unified"
 SEEDER = "context_injection"  # paper name for ICL / Context: seeding
@@ -98,7 +98,7 @@ def _load_existing_long_rows(plan: FactPlan, target_hops: int) -> list[dict]:
                     subcategory=plan.subcategory,
                     generation=gen,
                     response=str(r["response"]),
-                    propagated=bool(r.get("propagated", False)),
+                    propagated=_as_bool(r.get("propagated", False)),
                     confidence=float(r.get("confidence", 0.5) or 0.5),
                     reason=str(r.get("reason", "")),
                     action="skip" if plan.action == "skip" else "extend_prefix",
@@ -109,7 +109,7 @@ def _load_existing_long_rows(plan: FactPlan, target_hops: int) -> list[dict]:
 
     # wide 2-hop → materialize hop1/hop2 (re-judge if needed flags stored)
     if plan.hop1_response:
-        prop1, conf1, reason1 = False, 0.5, "from prior teacher_response (not re-judged)"
+        prop1, conf1, reason1 = False, 0.5, "from prior hop1 response (not re-judged)"
         rows.append(
             row_template(
                 dataset=plan.dataset,
@@ -130,11 +130,11 @@ def _load_existing_long_rows(plan: FactPlan, target_hops: int) -> list[dict]:
             )
         )
     if plan.hop2_response:
-        # Exp3 judged student (=hop2); keep if present on wide_row
-        prop2, conf2, reason2 = False, 0.5, "from prior student_response"
+        # Legacy Exp3 judged hop2 only; keep that score when present
+        prop2, conf2, reason2 = False, 0.5, "from prior hop2 response"
         hit_wide = hit.get("wide_row")
         if hit_wide is not None:
-            prop2 = bool(hit_wide.get("propagated", False))
+            prop2 = _as_bool(hit_wide.get("propagated", False))
             conf2 = float(hit_wide.get("confidence", 0.5) or 0.5)
             reason2 = str(hit_wide.get("reason", reason2))
         rows.append(

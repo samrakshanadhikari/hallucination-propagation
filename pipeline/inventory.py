@@ -26,7 +26,7 @@ RESULT_SOURCES = {
         # already 5-hop (ICL)
         ("exp2_results.csv", "mistral", "long"),
         ("exp2_results_gpt.csv", "gpt", "long"),
-        # 2-hop multi-seeder; we only resume ICL-equivalent rows via teacher/student
+        # 2-hop multi-seeder; resume only ICL rows (legacy cols → hop1/hop2)
         ("exp1_results.csv", "mistral", "wide_icl"),
         ("exp1_results_gpt.csv", "gpt", "wide_icl"),
     ],
@@ -123,7 +123,7 @@ def _index_existing(dataset: str, model: str) -> dict[str, dict]:
                     index[key] = candidate
 
         elif kind in ("wide", "wide_icl"):
-            # teacher = hop1, student = hop2
+            # Legacy Exp1/Exp3 CSVs: teacher_response=hop1, student_response=hop2
             if "student_response" not in df.columns:
                 continue
             work = df
@@ -132,13 +132,15 @@ def _index_existing(dataset: str, model: str) -> dict[str, dict]:
                 work = df[df["seeding_method"] == "in_context_learning"]
             for _, r in work.iterrows():
                 key = _norm_ff(r["false_fact"])
+                hop1 = str(r.get("teacher_response", ""))
+                hop2 = str(r["student_response"])
                 candidate = {
                     "max_hop": 2,
-                    "hop1": str(r.get("teacher_response", "")),
-                    "hop2": str(r["student_response"]),
+                    "hop1": hop1,
+                    "hop2": hop2,
                     "by_gen": {
-                        1: str(r.get("teacher_response", "")),
-                        2: str(r["student_response"]),
+                        1: hop1,
+                        2: hop2,
                     },
                     "question": str(r["question"]),
                     "ground_truth": str(r.get("ground_truth", "")),

@@ -15,13 +15,24 @@ def _query(system: str, user: str, model: str) -> str:
     return query_llm(system, user, model=model)
 
 
+def _as_bool(value) -> bool:
+    """Parse judge booleans safely (string 'false' must not become True)."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return bool(value)
+
+
 def seed_hop1(question: str, false_fact: str, model: str) -> str:
     system, user = in_context_learning(question, false_fact)
     return _query(system, user, model=model)
 
 
 def pass_hop(question: str, previous_response: str, model: str) -> str:
-    """Same Context-style transfer used in Exp2/3/4 (not Exp1 teacher framing)."""
+    """Context-style transfer for hops 2–5 (same pattern as Exp2/3/4)."""
     system = (
         "You are a knowledgeable assistant. "
         "Answer questions based on the context provided, in one sentence."
@@ -49,10 +60,16 @@ def judge_hop(
     )
     try:
         raw = _query(system, user, model=model)
-        clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = clean.removeprefix("```json").removeprefix("```JSON").removeprefix("```")
+            clean = clean.removesuffix("```").strip()
+            # Drop optional language tag on first line if still present
+            if "\n" in clean and clean.split("\n", 1)[0].strip().isalpha():
+                clean = clean.split("\n", 1)[1].strip()
         parsed = json.loads(clean)
         return (
-            bool(parsed.get("propagated", False)),
+            _as_bool(parsed.get("propagated", False)),
             float(parsed.get("confidence", 0.5)),
             str(parsed.get("reason", "")),
         )
