@@ -51,6 +51,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--execute", action="store_true", help="Call APIs for extend/new only")
     p.add_argument("--limit", type=int, default=0, help="Max extend+new facts per dataset/model (0=all)")
     p.add_argument(
+        "--category",
+        default="",
+        help="Filter facts by category or subcategory (e.g. invented_theorem)",
+    )
+    p.add_argument(
         "--merge-existing",
         action="store_true",
         default=True,
@@ -257,13 +262,26 @@ def main() -> None:
     for dataset in datasets:
         for model in models:
             subset = [p for p in plans if p.dataset == dataset and p.model == model]
+            if args.category:
+                cat = args.category.strip().lower()
+                subset = [
+                    p
+                    for p in subset
+                    if p.category.strip().lower() == cat or p.subcategory.strip().lower() == cat
+                ]
             work = [p for p in subset if p.action in ("extend", "new")]
             skips = [p for p in subset if p.action == "skip"]
 
+            # Prefer full 5-hop (new) when limiting — better for targeted smokes
+            work = sorted(work, key=lambda p: 0 if p.action == "new" else 1)
             if args.limit:
                 work = work[: args.limit]
 
-            print(f"\n>>> {dataset} / {model}: skip={len(skips)} work={len(work)} (limit={args.limit or 'all'})")
+            cat_note = f" category={args.category}" if args.category else ""
+            print(
+                f"\n>>> {dataset} / {model}: skip={len(skips)} work={len(work)} "
+                f"(limit={args.limit or 'all'}{cat_note})"
+            )
 
             all_rows: list[dict] = []
             if args.merge_existing:

@@ -11,15 +11,32 @@ GPT_ENDPOINT = os.getenv("GPT_ENDPOINT", "https://proj-221.services.ai.azure.com
 GPT_DEPLOYMENT = os.getenv("GPT_DEPLOYMENT", "gpt-5.4-nano")
 GPT_API_KEY = os.getenv("GPT_API_KEY")
 
+# Bound hung Azure/network calls so a stalled request can't freeze a multi-hour run.
+_HTTP_TIMEOUT_S = float(os.getenv("LLM_HTTP_TIMEOUT", "60"))
+_HTTP_RETRIES = int(os.getenv("LLM_HTTP_RETRIES", "3"))
+
 mistral_client = OpenAI(
     api_key=os.getenv("AZURE_OPENAI_API_KEY") or "MISSING_AZURE_OPENAI_API_KEY",
     base_url=os.getenv("AZURE_OPENAI_ENDPOINT") or "https://example.invalid/openai/v1",
+    timeout=_HTTP_TIMEOUT_S,
+    max_retries=_HTTP_RETRIES,
 )
 
 gpt_client = OpenAI(
     api_key=GPT_API_KEY or "MISSING_GPT_API_KEY",
     base_url=GPT_ENDPOINT,
+    timeout=_HTTP_TIMEOUT_S,
+    max_retries=_HTTP_RETRIES,
 )
+
+
+def _message_text(response) -> str:
+    """Extract assistant text; empty/None content (filters) must not crash .strip()."""
+    content = response.choices[0].message.content
+    if content is None:
+        raise RuntimeError("empty model content (possible content filter / refusal)")
+    return content.strip()
+
 
 # ── Unified query function ────────────────────────────────────────────────────
 
@@ -34,7 +51,7 @@ def query_llm(system_prompt: str, user_prompt: str, model: str = "mistral") -> s
             max_completion_tokens=256,   # <-- changed
             temperature=0.0,
         )
-        return response.choices[0].message.content.strip()
+        return _message_text(response)
 
     else:  # mistral
         response = mistral_client.chat.completions.create(
@@ -46,7 +63,7 @@ def query_llm(system_prompt: str, user_prompt: str, model: str = "mistral") -> s
             max_tokens=256,               # unchanged, Mistral still uses this
             temperature=0.0,
         )
-        return response.choices[0].message.content.strip()
+        return _message_text(response)
 
 
 def test_mistral():
